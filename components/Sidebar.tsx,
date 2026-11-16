@@ -1,0 +1,92 @@
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, usePathname } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+export const SIDEBAR_WIDTH = 220;
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const ITEMS: {
+  href: '/' | '/discover' | '/profile';
+  label: string;
+  icon: IconName;
+  iconActive: IconName;
+}[] = [
+  { href: '/', label: 'Accueil', icon: 'home-outline', iconActive: 'home' },
+  { href: '/discover', label: 'Découvrir', icon: 'compass-outline', iconActive: 'compass' },
+  { href: '/profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <View style={styles.sidebar}>
+      <Text style={styles.brand}>Ohreel</Text>
+
+      {ITEMS.map((item) => {
+        const active = pathname === item.href;
+        return (
+          <Pressable
+            key={item.href}
+            onPress={() => router.navigate(item.href)}
+            style={({ hovered }: any) => [
+              styles.item,
+              active && styles.itemActive,
+              hovered && !active && styles.itemHover,
+            ]}
+          >
+            <Ionicons
+              name={active ? item.iconActive : item.icon}
+              size={22}
+              color={active ? '#FF3B5C' : '#fff'}
+            />
+            <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  sidebar: {
+    width: SIDEBAR_WIDTH,
+    backgroundColor: '#000',
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: '#222',
+    paddingTop: 32,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  brand: {
+    color: '#FF3B5C',
+    fontSize: 26,
+    fontWeight: '900',
+    paddingHorizontal: 12,
+    marginBottom: 24,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  itemActive: {
+    backgroundColor: '#161616',
+  },
+  itemHover: {
+    backgroundColor: '#111',
+  },
+  label: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  labelActive: {
+    color: '#FF3B5C',
+  },
+});

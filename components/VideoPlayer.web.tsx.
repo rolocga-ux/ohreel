@@ -1,0 +1,62 @@
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+type Props = {
+  uri: string;
+  play: boolean;
+  muted: boolean;
+  // Appelé avec true si le navigateur refuse le son, false si la lecture démarre normalement
+  onPlayBlocked?: (blocked: boolean) => void;
+};
+
+export default function VideoPlayer({ uri, play, muted, onPlayBlocked }: Props) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  const onBlockedRef = useRef(onPlayBlocked);
+  onBlockedRef.current = onPlayBlocked;
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+
+    v.muted = muted;
+
+    if (!play) {
+      v.pause();
+      return;
+    }
+
+    const p = v.play();
+    if (!p || typeof p.then !== 'function') return;
+
+    p.then(() => {
+      onBlockedRef.current?.(false);
+    }).catch((err: any) => {
+      // Le navigateur refuse la lecture avec son : on repasse en muet et on prévient l'interface
+      if (err?.name === 'NotAllowedError' && !v.muted) {
+        v.muted = true;
+        onBlockedRef.current?.(true);
+        v.play().catch(() => {});
+      }
+      // AbortError : lecture interrompue par une pause, sans gravité
+    });
+  }, [play, muted]);
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {React.createElement('video', {
+        ref,
+        src: uri,
+        loop: true,
+        playsInline: true,
+        preload: 'auto',
+        style: {
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          backgroundColor: '#000',
+          display: 'block',
+        },
+      })}
+    </View>
+  );
+}

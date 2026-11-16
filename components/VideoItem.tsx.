@@ -1,0 +1,271 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import VideoPlayer from './VideoPlayer';
+import { notify } from '../utils/notify';
+import type { Video } from '../data/mockVideos';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+type Props = {
+  video: Video;
+  width: number;
+  height: number;
+  isActive: boolean;
+  locked: boolean;
+  onTip: () => void;
+};
+
+const SOUND_PREF_KEY = 'ohreel:soundEnabled';
+const HINT_VISIBLE_MS = 3000;
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
+
+// Préférence son mémorisée (web uniquement, localStorage n'existe pas sur mobile)
+function readSoundPref(): boolean {
+  if (Platform.OS !== 'web') return false;
+  try {
+    return (globalThis as any).localStorage?.getItem(SOUND_PREF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSoundPref(enabled: boolean) {
+  if (Platform.OS !== 'web') return;
+  try {
+    (globalThis as any).localStorage?.setItem(SOUND_PREF_KEY, enabled ? '1' : '0');
+  } catch {
+    // Stockage indisponible (mode privé, par exemple) : on ignore
+  }
+}
+
+export default function VideoItem({ video, width, height, isActive, locked, onTip }: Props) {
+  const [muted, setMuted] = useState(true);
+  const [blocked, setBlocked] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(video.likes);
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+
+  // Quand la vidéo devient active, on reprend la préférence mémorisée
+  useEffect(() => {
+    if (isActive && !locked) {
+      setMuted(!readSoundPref());
+      setBlocked(false);
+    }
+  }, [isActive, locked]);
+
+  const showHint = muted && !locked && isActive;
+
+  // Indication "Touchez pour activer le son" : apparaît, reste 3 s, disparaît
+  useEffect(() => {
+    if (!showHint) return;
+    hintOpacity.setValue(0);
+    const anim = Animated.sequence([
+      Animated.timing(hintOpacity, { toValue: 1, duration: 300, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.delay(HINT_VISIBLE_MS),
+      Animated.timing(hintOpacity, { toValue: 0, duration: 400, useNativeDriver: USE_NATIVE_DRIVER }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [showHint, hintOpacity]);
+
+  const toggleSound = () => {
+    if (locked) return;
+    const nextMuted = !muted;
+    setMuted(nextMuted);
+    if (!nextMuted) setBlocked(false);
+    // Le choix de l'utilisateur est mémorisé uniquement quand il le fait lui-même
+    writeSoundPref(!nextMuted);
+  };
+
+  // Appelé par le lecteur quand le navigateur refuse ou accepte la lecture avec son
+  const handlePlayBlocked = (isBlocked: boolean) => {
+    setBlocked(isBlocked);
+    if (isBlocked) setMuted(true);
+  };
+
+  const toggleLike = () => {
+    setLiked((prev) => !prev);
+    setLikeCount((c) => (liked ? c - 1 : c + 1));
+  };
+
+  const handleComment = () => {
+    notify('Commentaires', 'Bientôt disponible dans la version complète.');
+  };
+
+  const hintText =
+    Platform.OS === 'web' ? 'Cliquez pour activer le son' : 'Touchez pour activer le son';
+
+  return (
+    <View style={[styles.container, { width, height }]}>
+      <VideoPlayer
+        uri={video.videoUrl}
+        play={isActive && !locked}
+        muted={muted}
+        onPlayBlocked={handlePlayBlocked}
+      />
+
+      {/* Zone cliquable plein écran pour activer le son */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={toggleSound} />
+
+      {showHint && (
+        <Animated.View pointerEvents="none" style={[styles.soundHint, { opacity: hintOpacity }]}>
+          <View style={styles.hintPill}>
+            <Ionicons name="volume-mute" size={22} color="#fff" />
+            <Text style={styles.hintText}>{hintText}</Text>
+          </View>
+        </Animated.View>
+      )}
+
+      {blocked && muted && !locked && (
+        <Pressable onPress={toggleSound} style={styles.blockedBanner}>
+          <Ionicons name="warning-outline" size={16} color="#FFD60A" />
+          <Text style={styles.blockedText}>
+            Son bloqué par le navigateur. Cliquez ici pour réessayer.
+          </Text>
+        </Pressable>
+      )}
+
+      {locked && (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.lockedOverlay]}>
+          <Ionicons name="lock-closed" size={48} color="#fff" />
+          <Text style={styles.lockedText}>Épisode verrouillé</Text>
+        </View>
+      )}
+
+      <View style={styles.rightColumn}>
+        <ActionButton
+          icon={liked ? 'heart' : 'heart-outline'}
+          label={formatCount(likeCount)}
+          active={liked}
+          onPress={toggleLike}
+        />
+        <ActionButton icon="chatbubble-ellipses-outline" label="Com." onPress={handleComment} />
+        <ActionButton icon="diamond-outline" label="Pièces" onPress={onTip} />
+      </View>
+
+      <View pointerEvents="none" style={styles.bottomInfo}>
+        <Text style={styles.series}>{video.seriesTitle}</Text>
+        <Text style={styles.episode}>Épisode {video.episode}</Text>
+      </View>
+    </View>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onPress,
+  active,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.action} hitSlop={8}>
+      <Ionicons name={icon} size={32} color={active ? '#FF3B5C' : '#fff'} />
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function formatCount(n: number) {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#000',
+    overflow: 'hidden',
+  },
+  soundHint: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  hintText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  blockedBanner: {
+    position: 'absolute',
+    top: 16,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+  },
+  blockedText: {
+    color: '#FFD60A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  lockedOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockedText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  rightColumn: {
+    position: 'absolute',
+    right: 12,
+    bottom: 40,
+    alignItems: 'center',
+    gap: 22,
+  },
+  action: {
+    alignItems: 'center',
+  },
+  actionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  bottomInfo: {
+    position: 'absolute',
+    left: 16,
+    right: 90,
+    bottom: 40,
+    gap: 4,
+  },
+  series: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  episode: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+});
