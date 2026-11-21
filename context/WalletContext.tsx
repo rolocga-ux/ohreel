@@ -1,0 +1,58 @@
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
+
+type WalletValue = {
+  coins: number;
+  addCoins: (amount: number) => void;
+  spendCoins: (amount: number) => boolean;
+  unlockEpisode: (videoId: string) => void;
+  isUnlocked: (videoId: string) => boolean;
+};
+
+const WalletContext = createContext<WalletValue | undefined>(undefined);
+
+export function WalletProvider({ children }: { children: ReactNode }) {
+  const [coins, setCoins] = useState(20);
+  const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+
+  const addCoins = useCallback((amount: number) => {
+    setCoins((c) => c + amount);
+  }, []);
+
+  const spendCoins = useCallback(
+    (amount: number) => {
+      if (coins < amount) return false;
+      setCoins(coins - amount);
+      return true;
+    },
+    [coins]
+  );
+
+  const unlockEpisode = useCallback((videoId: string) => {
+    setUnlockedIds((ids) => (ids.includes(videoId) ? ids : [...ids, videoId]));
+  }, []);
+
+  const isUnlocked = useCallback(
+    (videoId: string) => unlockedIds.includes(videoId),
+    [unlockedIds]
+  );
+
+  const value = useMemo(
+    () => ({ coins, addCoins, spendCoins, unlockEpisode, isUnlocked }),
+    [coins, addCoins, spendCoins, unlockEpisode, isUnlocked]
+  );
+
+  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+}
+
+export function useWallet() {
+  const ctx = useContext(WalletContext);
+  if (!ctx) throw new Error('useWallet doit être utilisé dans un WalletProvider');
+  return ctx;
+}
