@@ -1,0 +1,122 @@
+import React from 'react';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+type Props = {
+  visible: boolean;
+  seriesTitle: string;
+  episode: number;
+  onWatchAd: () => void;
+  onBuyCoins: () => void;
+  onClose: () => void;
+};
+
+const isWeb = Platform.OS === 'web';
+
+export default function PaywallModal({
+  visible,
+  seriesTitle,
+  episode,
+  onWatchAd,
+  onBuyCoins,
+  onClose,
+}: Props) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={[styles.backdrop, isWeb && styles.backdropWeb]}>
+        <View style={[styles.sheet, isWeb && styles.sheetWeb]}>
+          <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={10}>
+            <Ionicons name="close" size={22} color="#fff" />
+          </Pressable>
+
+          <Ionicons name="lock-closed" size={40} color="#FF3B5C" />
+          <Text style={styles.title}>Débloquez la suite</Text>
+          <Text style={styles.subtitle}>
+            « {seriesTitle} » — Épisode {episode}
+          </Text>
+
+          <Pressable style={[styles.button, styles.primary]} onPress={onWatchAd}>
+            <Ionicons name="play-circle" size={20} color="#000" />
+            <Text style={styles.primaryText}>Regarder une pub pour 1 épisode gratuit</Text>
+          </Pressable>
+
+          <Pressable style={[styles.button, styles.secondary]} onPress={onBuyCoins}>
+            <Ionicons name="diamond" size={20} color="#FFD60A" />
+            <Text style={styles.secondaryText}>Acheter des pièces</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  backdropWeb: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheet: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 44,
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+  sheetWeb: {
+    maxWidth: 440,
+    borderRadius: 24,
+    paddingBottom: 28,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  subtitle: {
+    color: '#aaa',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  button: {
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  primary: {
+    backgroundColor: '#fff',
+  },
+  primaryText: {
+    color: '#000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondary: {
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  secondaryText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});
