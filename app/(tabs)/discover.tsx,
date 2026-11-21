@@ -1,0 +1,106 @@
+import React from 'react';
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { notify } from '../../utils/notify';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
+import { MOCK_VIDEOS } from '../../data/mockVideos';
+
+type Series = { id: string; title: string; poster: string; episodes: number };
+
+const SERIES: Series[] = Object.values(
+  MOCK_VIDEOS.reduce<Record<string, Series>>((acc, v) => {
+    if (!acc[v.seriesId]) {
+      acc[v.seriesId] = { id: v.seriesId, title: v.seriesTitle, poster: v.posterUrl, episodes: 0 };
+    }
+    acc[v.seriesId].episodes += 1;
+    return acc;
+  }, {})
+);
+
+export default function DiscoverScreen() {
+  const isDesktop = useIsDesktop();
+  const columns = isDesktop ? 4 : 2;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.container}>
+        <Text style={styles.header}>Découvrir</Text>
+        <FlatList
+          key={`cols-${columns}`}
+          data={SERIES}
+          keyExtractor={(item) => item.id}
+          numColumns={columns}
+          columnWrapperStyle={styles.column}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <Pressable
+              style={({ hovered }: any) => [styles.card, hovered && styles.cardHover]}
+              onPress={() =>
+                notify(item.title, `${item.episodes} épisodes disponibles. Retrouvez-les dans l'onglet Accueil.`)
+              }
+            >
+              <Image source={{ uri: item.poster }} style={styles.poster} />
+              <Text style={styles.title} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.meta}>{item.episodes} épisodes</Text>
+            </Pressable>
+          )}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  container: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 1100,
+    alignSelf: 'center',
+  },
+  header: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  list: {
+    paddingHorizontal: 12,
+    paddingBottom: 24,
+    gap: 16,
+  },
+  column: {
+    gap: 12,
+  },
+  card: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 2,
+  },
+  cardHover: {
+    backgroundColor: '#161616',
+  },
+  poster: {
+    width: '100%',
+    aspectRatio: 9 / 16,
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+  },
+  title: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  meta: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
+  },
+});
