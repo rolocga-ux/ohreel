@@ -1,0 +1,171 @@
+import React, { useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import VideoPlayer from './VideoPlayer';
+import { notify } from '../utils/notify';
+import type { Video } from '../data/mockVideos';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+type Props = {
+  video: Video;
+  width: number;
+  height: number;
+  isActive: boolean;
+  locked: boolean;
+  onTip: () => void;
+};
+
+export default function VideoItem({ video, width, height, isActive, locked, onTip }: Props) {
+  const [muted, setMuted] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(video.likes);
+
+  const toggleSound = () => {
+    if (!locked) setMuted((m) => !m);
+  };
+
+  const toggleLike = () => {
+    setLiked((prev) => !prev);
+    setLikeCount((c) => (liked ? c - 1 : c + 1));
+  };
+
+  const handleComment = () => {
+    notify('Commentaires', 'Bientôt disponible dans la version complète.');
+  };
+
+  const hintText =
+    Platform.OS === 'web' ? 'Cliquez pour activer le son' : 'Touchez pour activer le son';
+
+  return (
+    <View style={[styles.container, { width, height }]}>
+      <VideoPlayer uri={video.videoUrl} play={isActive && !locked} muted={muted} />
+
+      {/* Zone cliquable plein écran pour activer le son */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={toggleSound} />
+
+      {muted && !locked && (
+        <View pointerEvents="none" style={styles.soundHint}>
+          <Ionicons name="volume-mute" size={28} color="#fff" />
+          <Text style={styles.hintText}>{hintText}</Text>
+        </View>
+      )}
+
+      {locked && (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.lockedOverlay]}>
+          <Ionicons name="lock-closed" size={48} color="#fff" />
+          <Text style={styles.lockedText}>Épisode verrouillé</Text>
+        </View>
+      )}
+
+      <View style={styles.rightColumn}>
+        <ActionButton
+          icon={liked ? 'heart' : 'heart-outline'}
+          label={formatCount(likeCount)}
+          active={liked}
+          onPress={toggleLike}
+        />
+        <ActionButton icon="chatbubble-ellipses-outline" label="Com." onPress={handleComment} />
+        <ActionButton icon="diamond-outline" label="Pièces" onPress={onTip} />
+      </View>
+
+      <View pointerEvents="none" style={styles.bottomInfo}>
+        <Text style={styles.series}>{video.seriesTitle}</Text>
+        <Text style={styles.episode}>Épisode {video.episode}</Text>
+      </View>
+    </View>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onPress,
+  active,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.action} hitSlop={8}>
+      <Ionicons name={icon} size={32} color={active ? '#FF3B5C' : '#fff'} />
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function formatCount(n: number) {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#000',
+    overflow: 'hidden',
+  },
+  soundHint: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hintText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  lockedOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockedText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  rightColumn: {
+    position: 'absolute',
+    right: 12,
+    bottom: 40,
+    alignItems: 'center',
+    gap: 22,
+  },
+  action: {
+    alignItems: 'center',
+  },
+  actionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  bottomInfo: {
+    position: 'absolute',
+    left: 16,
+    right: 90,
+    bottom: 40,
+    gap: 4,
+  },
+  series: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  episode: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+});
